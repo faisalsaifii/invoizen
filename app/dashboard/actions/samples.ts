@@ -29,8 +29,11 @@ export async function uploadSampleInvoice(variant: SampleVariant = "us"): Promis
   let generated;
   try {
     generated = await generateSampleInvoice(variant);
-  } catch {
-    logger.error("samples.generate", "Sample invoice generation failed", { variant });
+  } catch (err) {
+    logger.error("samples.generate", "Sample invoice generation failed", {
+      variant,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return { success: false, error: "Could not generate the sample invoice." };
   }
 

@@ -205,21 +205,24 @@ function drawWrapped(
   color: ReturnType<typeof rgb>,
   maxWidth: number,
 ) {
-  const words = text.split(" ");
-  let line = "";
-  let yPos = y;
   const indent = x;
-  for (const word of words) {
-    const test = line === "" ? word : `${line} ${word}`;
-    if (maxWidth > 0 && font.widthOfTextAtSize(test, size) > maxWidth && line !== "") {
+  let yPos = y;
+  for (const paragraph of text.split("\n")) {
+    const words = paragraph.split(" ");
+    let line = "";
+    for (const word of words) {
+      const test = line === "" ? word : `${line} ${word}`;
+      if (maxWidth > 0 && font.widthOfTextAtSize(test, size) > maxWidth && line !== "") {
+        page.drawText(line, { x: indent, y: yPos, size, font, color });
+        yPos -= size + 2;
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line !== "") {
       page.drawText(line, { x: indent, y: yPos, size, font, color });
       yPos -= size + 2;
-      line = word;
-    } else {
-      line = test;
     }
-  }
-  if (line !== "") {
-    page.drawText(line, { x: indent, y: yPos, size, font, color });
   }
 }

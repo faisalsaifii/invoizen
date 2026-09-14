@@ -6,7 +6,14 @@ import { uploadInvoice } from "./actions/upload";
 import { processDocument } from "./actions/extract";
 import { uploadSampleInvoice } from "./actions/samples";
 import { Button } from "@/components/ui/button";
-import { Upload, Wand2, Loader2, AlertCircle, CheckCircle2, FileText } from "lucide-react";
+import {
+  Upload,
+  Wand2,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Phase = "idle" | "uploading" | "processing" | "success" | "error";
@@ -36,7 +43,11 @@ export function InvoiceUploader() {
   }
 
   async function runFlow(opts: {
-    kickoff: () => Promise<{ success: boolean; error?: string; documentId?: string }>;
+    kickoff: () => Promise<{
+      success: boolean;
+      error?: string;
+      documentId?: string;
+    }>;
     kickoffMessage: string;
     processingMessage: string;
   }) {
@@ -79,7 +90,11 @@ export function InvoiceUploader() {
       await runFlow({
         kickoff: async () => {
           const formData = new FormData();
-          formData.append("file", new Blob([await file.arrayBuffer()], { type: file.type }), file.name);
+          formData.append(
+            "file",
+            new Blob([await file.arrayBuffer()], { type: file.type }),
+            file.name,
+          );
           return uploadInvoice(formData);
         },
         kickoffMessage: "Upload failed. Please try again.",
@@ -111,7 +126,7 @@ export function InvoiceUploader() {
         onChange={handleFile}
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3">
         <Button
           variant="default"
           disabled={busy}

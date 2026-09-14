@@ -2,7 +2,11 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getDashboardStats, getRecentDocuments, listCurrencies } from "@/lib/data";
+import {
+  getDashboardStats,
+  getRecentDocuments,
+  listCurrencies,
+} from "@/lib/data";
 import { InvoiceUploader } from "./invoice-uploader";
 import { DocumentStatusBadge } from "@/components/invoice/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,7 +62,7 @@ function StatCard({
 
 function StatsGridSkeleton() {
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-2">
       {[0, 1, 2, 3].map((i) => (
         <Card key={i} className="h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -85,7 +89,10 @@ function RecentDocsSkeleton() {
       <Card>
         <CardContent className="flex flex-col divide-y">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center justify-between gap-4 px-4 py-3">
+            <div
+              key={i}
+              className="flex items-center justify-between gap-4 px-4 py-3"
+            >
               <div className="flex items-center gap-3 min-w-0">
                 <Skeleton className="h-5 w-20 shrink-0" />
                 <div className="min-w-0 flex flex-col gap-1">
@@ -115,21 +122,33 @@ async function DashboardStats({ userId }: { userId: string }) {
 
   return (
     <>
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2">
         <StatCard
           icon={<AlertTriangle size={16} className="text-amber-500" />}
           label="Needs review"
           value={stats.needsReviewCount}
-          href={stats.needsReviewCount > 0 ? "/dashboard/invoices?status=needs_review" : undefined}
+          href={
+            stats.needsReviewCount > 0
+              ? "/dashboard/invoices?status=needs_review"
+              : undefined
+          }
         />
         <StatCard
           icon={<CircleDollarSign size={16} className="text-primary" />}
-          label="Total (primary currency)"
+          label="Total"
           value={
-            primaryCurrency ? formatCompactMoney(primaryCurrency.total, primaryCurrency.currency) : "—"
+            primaryCurrency
+              ? formatCompactMoney(
+                  primaryCurrency.total,
+                  primaryCurrency.currency,
+                )
+              : "—"
           }
-          sub={primaryCurrency ? primaryCurrency.currency : "Upload an invoice to start"}
-          href={primaryCurrency ? `/dashboard/invoices?currency=${primaryCurrency.currency}` : undefined}
+          href={
+            primaryCurrency
+              ? `/dashboard/invoices?currency=${primaryCurrency.currency}`
+              : undefined
+          }
         />
         <StatCard
           icon={<FileText size={16} className="text-sky-500" />}
@@ -142,14 +161,17 @@ async function DashboardStats({ userId }: { userId: string }) {
           label="Failed documents"
           value={stats.failedCount}
           href={
-            stats.failedCount > 0 ? `/dashboard/invoices?status=failed` : undefined
+            stats.failedCount > 0
+              ? `/dashboard/invoices?status=failed`
+              : undefined
           }
         />
       </div>
 
       {currencies.length > 1 && (
         <p className="text-xs text-muted-foreground">
-          Tracking {currencies.length} currencies: {currencies.slice(0, 6).join(", ")}
+          Tracking {currencies.length} currencies:{" "}
+          {currencies.slice(0, 6).join(", ")}
           {currencies.length > 6 ? "…" : ""}
         </p>
       )}
@@ -247,26 +269,30 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Upload an invoice</CardTitle>
-          <CardDescription>
-            Anything goes — the pipeline handles US and European number
-            formats, multiple line items, and tax.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <InvoiceUploader />
-        </CardContent>
-      </Card>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+        <div className="flex flex-col gap-8 min-w-0 lg:sticky lg:top-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Upload an invoice</CardTitle>
+              <CardDescription>
+                US and European number formats, line items, and tax — handled
+                automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InvoiceUploader />
+            </CardContent>
+          </Card>
 
-      <Suspense fallback={<StatsGridSkeleton />}>
-        <DashboardStats userId={user.id} />
-      </Suspense>
+          <Suspense fallback={<StatsGridSkeleton />}>
+            <DashboardStats userId={user.id} />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<RecentDocsSkeleton />}>
-        <RecentDocuments userId={user.id} />
-      </Suspense>
+        <Suspense fallback={<RecentDocsSkeleton />}>
+          <RecentDocuments userId={user.id} />
+        </Suspense>
+      </div>
     </div>
   );
 }

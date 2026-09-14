@@ -43,11 +43,6 @@ export function parseAmount(raw: string | null | undefined): number | null {
   const match = s.match(NUMBER_TOKEN);
   if (!match) return null;
   let token = match[1].trim();
-
-  if (/^(-)/.test(token)) {
-    // curly quotes / minus sign handling is done via the regex above; keep sign
-  }
-
   token = token.replace(COMPACT, "");
   if (token === "" || token === "-") return null;
 
@@ -70,10 +65,7 @@ export function parseAmount(raw: string | null | undefined): number | null {
   if (commaCount > 0 && dotCount > 0) {
     // Both separators present: last one is the decimal separator.
     const lastSep = Math.max(token.lastIndexOf(","), token.lastIndexOf("."));
-    const integerPart = token
-      .slice(0, lastSep)
-      .replace(/[.,]/g, "")
-      .replace(/\./g, "");
+    const integerPart = token.slice(0, lastSep).replace(/[.,]/g, "");
     const decimalPart = token.slice(lastSep + 1);
     return toNumber(integerPart, decimalPart, negative);
   }
@@ -178,9 +170,10 @@ export function parseDate(raw: string | null | undefined): ParsedDate {
     return buildDate(day, monthNum, padYear(yearPart), false);
   }
 
-  // Numeric formats separated by / . -
-  const sep = [/[/]/, /[.]/, /-/].find((re) => re.test(s));
-  const nums = s.split(sep ? (sep.source === "[/]" ? /[\/]/ : /[.\-]/) : /[^\d]/).filter(Boolean);
+  // Numeric formats separated by / . - (fall back to splitting on anything
+  // that isn't a digit for space-separated input like "14 09 2026").
+  const time = /[./-]/.test(s) ? /[./-]/ : /[^\d]/;
+  const nums = s.split(time).filter(Boolean);
   if (nums.length < 3) return { value: null, ambiguous: false };
 
   const numsArr = nums.map(Number);

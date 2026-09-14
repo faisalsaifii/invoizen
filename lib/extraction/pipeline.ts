@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { clampConfidence, emptyConfidence } from "./types";
 import { CRITICAL_FIELDS } from "./types";
-import { ExtractionError, errorKindMessage } from "./errors";
+import { ExtractionError } from "./errors";
 import type { ExtractionProvider } from "./provider";
 import type { ParsedModelOutput } from "./schema";
 
@@ -238,4 +238,3 @@ function fail(reason: string, message: string): PipelineResult {
 }
 
 export type { ExtractionProvider };
-export { errorKindMessage, ExtractionError };

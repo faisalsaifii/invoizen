@@ -190,7 +190,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
     setF((prev) => ({ ...prev, [key]: value }));
   }
 
-  function rowAmount(key: string, idx: number) {
+  function rowAmount(idx: number) {
     return (candidate: string) => {
       setRows((prev) =>
         prev.map((r, i) => (i === idx ? { ...r, dupe: { ...r.dupe, amount: parseNum(candidate) } } : r)),
@@ -198,7 +198,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
     };
   }
 
-  function rowQty(key: string, idx: number) {
+  function rowQty(idx: number) {
     return (candidate: string) => {
       const qty = parseNum(candidate);
       setRows((prev) =>
@@ -213,7 +213,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
     };
   }
 
-  function rowPrice(key: string, idx: number) {
+  function rowPrice(idx: number) {
     return (candidate: string) => {
       const up = parseNum(candidate);
       setRows((prev) =>
@@ -617,7 +617,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
                         type="number"
                         step="any"
                         value={num(r.dupe.quantity)}
-                        onChange={(e) => rowQty(r.key, i)(e.target.value)}
+                        onChange={(e) => rowQty(i)(e.target.value)}
                       />
                     </td>
                     <td className="py-2 pr-3">
@@ -626,7 +626,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
                         type="number"
                         step="any"
                         value={num(r.dupe.unit_price)}
-                        onChange={(e) => rowPrice(r.key, i)(e.target.value)}
+                        onChange={(e) => rowPrice(i)(e.target.value)}
                       />
                     </td>
                     <td className="py-2 pr-3">
@@ -635,7 +635,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
                         type="number"
                         step="any"
                         value={num(r.dupe.amount)}
-                        onChange={(e) => rowAmount(r.key, i)(e.target.value)}
+                        onChange={(e) => rowAmount(i)(e.target.value)}
                       />
                     </td>
                     <td className="py-2 w-8">

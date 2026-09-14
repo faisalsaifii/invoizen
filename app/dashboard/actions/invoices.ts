@@ -2,10 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { tryCreateProvider } from "@/lib/extraction/factory";
-import { runExtraction } from "@/lib/extraction/pipeline";
-import { errorKindMessage, ExtractionError, type ExtractionErrorKind } from "@/lib/extraction/errors";
 import { logger } from "@/lib/logger";
+import { runExtractionFlow, type ExtractionFlowResult } from "./extraction-flow";
 
 export interface ReviewLineItemInput {
   position: number;
@@ -43,11 +41,7 @@ export type ActionResult = {
   error?: string;
 };
 
-export type ReprocessResult = ActionResult & {
-  status?: "ready" | "needs_review" | "failed";
-  invoiceId?: string;
-  message?: string;
-};
+export type ReprocessResult = ExtractionFlowResult;
 
 function toNullableString(v: string | null | undefined): string | null {
   if (v === null || v === undefined) return null;
@@ -255,153 +249,7 @@ async function processExistingDocument(documentId: string): Promise<ReprocessRes
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "You must be logged in." };
 
-  const provider = tryCreateProvider();
-  if (!provider) {
-    logger.warn("extraction.reprocess", "Extraction not configured (missing GEMINI_API_KEY)", {
-      documentId,
-    });
-    return { success: false, error: errorKindMessage("not-configured") };
-  }
-
-  // Clear any previous extracted data up front so a partial failure doesn't
-  // leave a stale invoice around.
-  const { data: existingInvoices } = await supabase
-    .from("invoices")
-    .select("id")
-    .eq("document_id", documentId)
-    .eq("user_id", user.id);
-  for (const inv of existingInvoices ?? []) {
-    await supabase.from("invoice_items").delete().eq("invoice_id", inv.id);
-    await supabase.from("invoices").delete().eq("id", inv.id);
-  }
-
-  await supabase
-    .from("documents")
-    .update({ status: "processing", status_message: null })
-    .eq("id", documentId);
-
-  const { data: doc } = await supabase
-    .from("documents")
-    .select("storage_path")
-    .eq("id", documentId)
-    .eq("user_id", user.id)
-    .single();
-  if (!doc) return { success: false, error: "Document not found." };
-
-  const { data: blob } = await supabase.storage.from("invoices").download(doc.storage_path);
-  if (!blob) {
-    logger.error("extraction.reprocess", "Failed to read document from storage", {
-      documentId,
-      storagePath: doc.storage_path,
-    });
-    await supabase
-      .from("documents")
-      .update({ status: "failed", status_message: "Could not read the file from storage." })
-      .eq("id", documentId);
-    return { success: false, error: "Could not read the file from storage." };
-  }
-
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-
-  let result;
-  try {
-    result = await runExtraction(bytes, provider);
-  } catch (err) {
-    const kind: ExtractionErrorKind =
-      err instanceof ExtractionError ? err.kind : "server-error";
-    const detail = err instanceof Error ? err.message : "Unknown extraction failure.";
-    logger.error("extraction.reprocess", "Reprocessing failed", {
-      documentId,
-      kind,
-      error: detail,
-    });
-    await supabase
-      .from("documents")
-      .update({ status: "failed", status_message: detail })
-      .eq("id", documentId);
-    return { success: false, error: errorKindMessage(kind), status: "failed", message: detail };
-  }
-
-  if (!result.ok || !result.invoice) {
-    const kind = result.reason as ExtractionErrorKind;
-    const message = result.message ?? errorKindMessage(kind);
-    await supabase
-      .from("documents")
-      .update({ status: "failed", status_message: message })
-      .eq("id", documentId);
-    return { success: false, status: result.status, message, error: message };
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("invoices")
-    .insert({
-      document_id: documentId,
-      user_id: user.id,
-      vendor_name: result.invoice.vendorName,
-      vendor_email: result.invoice.vendorEmail,
-      vendor_address: result.invoice.vendorAddress,
-      vendor_tax_id: result.invoice.vendorTaxId,
-      invoice_number: result.invoice.invoiceNumber,
-      po_number: result.invoice.poNumber,
-      invoice_date: result.invoice.invoiceDate,
-      due_date: result.invoice.dueDate,
-      currency: result.invoice.currency,
-      subtotal: result.invoice.subtotal,
-      tax: result.invoice.tax,
-      tax_rate: result.invoice.taxRate,
-      discount: result.invoice.discount,
-      shipping: result.invoice.shipping,
-      total: result.invoice.total,
-      payment_method: result.invoice.paymentMethod,
-      notes: result.invoice.notes,
-      status: result.status,
-      confidence: result.invoice.confidence,
-      flags: result.invoice.flags,
-    })
-    .select("id")
-    .single();
-
-  if (insertError || !inserted) {
-    logger.error("extraction.reprocess", "Failed to save the re-extracted invoice", {
-      documentId,
-      error: insertError?.message,
-    });
-    await supabase
-      .from("documents")
-      .update({ status: "failed", status_message: "Could not save the extracted invoice." })
-      .eq("id", documentId);
-    return { success: false, error: "Could not save the extracted invoice." };
-  }
-
-  if (result.invoice.items.length > 0) {
-    const { error: insertItemsError } = await supabase.from("invoice_items").insert(
-      result.invoice.items.map((it) => ({
-        invoice_id: inserted.id,
-        position: it.position,
-        sku: it.sku,
-        description: it.description,
-        quantity: it.quantity,
-        unit_price: it.unitPrice,
-        amount: it.amount,
-      })),
-    );
-    if (insertItemsError) {
-      logger.error("extraction.reprocess", "Failed to insert re-extracted line items", {
-        documentId,
-        invoiceId: inserted.id,
-        error: insertItemsError.message,
-      });
-    }
-  }
-
-  await supabase
-    .from("documents")
-    .update({ status: result.status, status_message: null })
-    .eq("id", documentId);
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/invoices");
-  revalidatePath(`/dashboard/invoices/${inserted.id}`);
-
-  return { success: true, status: result.status, invoiceId: inserted.id };
+  // Clearing the stale invoice is handled inside the shared flow, which
+  // re-extracts and replaces the existing row after verifying ownership.
+  return runExtractionFlow(supabase, user.id, documentId, { clearExisting: true });
 }

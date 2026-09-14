@@ -32,11 +32,3 @@ export function ConfidenceDot({ value, field }: Props) {
     />
   );
 }
-
-export function ConfidenceValue({ value }: { value: number }) {
-  return (
-    <span className={`text-xs font-medium ${value >= 0.7 ? "text-green-600 dark:text-green-400" : value >= 0.4 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
-      {value >= 0.7 ? "High" : value >= 0.4 ? "Low" : value === 0 ? "Missing" : "Guessed"}
-    </span>
-  );
-}

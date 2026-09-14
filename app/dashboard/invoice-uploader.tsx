@@ -27,49 +27,48 @@ export function InvoiceUploader() {
   const router = useRouter();
   const pathname = usePathname();
 
-  async function run(file: { name: string; type: string; size: number; arrayBuffer(): Promise<ArrayBuffer> }) {
-    setError(null);
-    setPhase("uploading");
-
-    const formData = new FormData();
-    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-    formData.append("file", blob, file.name);
-
-    const up = await uploadInvoice(formData);
-    if (!up.success || !up.documentId) {
-      setPhase("error");
-      setError(up.error ?? "Upload failed. Please try again.");
-      return;
-    }
-
+  function startProgress() {
     setPhase("processing");
     setStepIndex(0);
-    const stepTimer = setInterval(() => {
+    return setInterval(() => {
       setStepIndex((i) => Math.min(i + 1, PROCESS_STEPS.length - 1));
     }, 4000);
+  }
 
+  async function runFlow(opts: {
+    kickoff: () => Promise<{ success: boolean; error?: string; documentId?: string }>;
+    kickoffMessage: string;
+    processingMessage: string;
+  }) {
+    setError(null);
+    setPhase("uploading");
     try {
-      const res = await processDocument(up.documentId);
-      clearInterval(stepTimer);
-      if (res.success && res.invoiceId) {
-        setPhase("success");
-        router.push(`/dashboard/invoices/${res.invoiceId}`);
-        router.refresh();
+      const up = await opts.kickoff();
+      if (!up.success || !up.documentId) {
+        setPhase("error");
+        setError(up.error ?? opts.kickoffMessage);
         return;
       }
-      if (res.success) {
-        // Queued or otherwise absent invoice — just refresh.
+
+      const stepTimer = startProgress();
+      try {
+        const res = await processDocument(up.documentId);
+        if (!res.success) {
+          setPhase("error");
+          setError(res.message ?? res.error ?? opts.processingMessage);
+          return;
+        }
         setPhase("success");
+        if (res.invoiceId) {
+          router.push(`/dashboard/invoices/${res.invoiceId}`);
+        }
         router.refresh();
-        return;
+      } finally {
+        clearInterval(stepTimer);
       }
-      setPhase("error");
-      setError(res.message ?? res.error ?? "Processing failed. Please try again.");
-      if (res.status === "failed" && res.message) setError(res.message);
     } catch {
-      clearInterval(stepTimer);
       setPhase("error");
-      setError("Something went wrong while processing the file.");
+      setError(opts.processingMessage);
     }
   }
 
@@ -77,42 +76,26 @@ export function InvoiceUploader() {
     const file = e.target.files?.[0];
     if (!file) return;
     startTransition(async () => {
-      await run(file);
+      await runFlow({
+        kickoff: async () => {
+          const formData = new FormData();
+          formData.append("file", new Blob([await file.arrayBuffer()], { type: file.type }), file.name);
+          return uploadInvoice(formData);
+        },
+        kickoffMessage: "Upload failed. Please try again.",
+        processingMessage: "Something went wrong while processing the file.",
+      });
     });
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function handleSample() {
     startTransition(async () => {
-      setError(null);
-      setPhase("uploading");
-      const res = await uploadSampleInvoice("eu");
-      if (!res.success || !res.documentId) {
-        setPhase("error");
-        setError(res.error ?? "Could not generate the sample.");
-        return;
-      }
-      setPhase("processing");
-      setStepIndex(0);
-      const stepTimer = setInterval(() => {
-        setStepIndex((i) => Math.min(i + 1, PROCESS_STEPS.length - 1));
-      }, 4000);
-      try {
-        const out = await processDocument(res.documentId);
-        clearInterval(stepTimer);
-        if (out.success && out.invoiceId) {
-          setPhase("success");
-          router.push(`/dashboard/invoices/${out.invoiceId}`);
-          router.refresh();
-          return;
-        }
-        setPhase("error");
-        setError(out.message ?? out.error ?? "Could not process the sample.");
-      } catch {
-        clearInterval(stepTimer);
-        setPhase("error");
-        setError("Something went wrong while processing the sample.");
-      }
+      await runFlow({
+        kickoff: () => uploadSampleInvoice("eu"),
+        kickoffMessage: "Could not generate the sample.",
+        processingMessage: "Something went wrong while processing the sample.",
+      });
     });
   }
 

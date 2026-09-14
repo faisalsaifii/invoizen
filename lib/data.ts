@@ -189,17 +189,12 @@ export async function getRecentDocuments(
   if (error) return [];
 
   return (data ?? []).map((d) => {
-    const invoices = (d.invoices ??
-      []) as Array<{ id: string; vendor_name: string | null }> | {
-      id: string;
-      vendor_name: string | null;
-    } | null;
-
-    if (!invoices) {
-      return { ...(d as DocumentRow), invoice_id: null, vendor_name: null };
-    }
-
-    const first = Array.isArray(invoices) ? invoices.filter(Boolean).pop() : invoices;
+    const related = d.invoices as
+      | Array<{ id: string; vendor_name: string | null }>
+      | { id: string; vendor_name: string | null }
+      | null;
+    const invoices = related ? (Array.isArray(related) ? related : [related]) : [];
+    const first = invoices.filter(Boolean).pop();
     return {
       ...(d as DocumentRow),
       invoice_id: first?.id ?? null,

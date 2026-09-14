@@ -1,109 +1,116 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Invoizen
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+**Turn messy invoice PDFs into structured, queryable data.**
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+Upload any invoice PDF. Invoizen extracts the vendor, dates, line items and
+amounts with an LLM, then **verifies the math** — totals are cross-checked
+against line items and tax, locale quirks (`1.234,56` vs `1,234.56`) are parsed
+deterministically, and anything uncertain is flagged for human review instead of
+being silently trusted.
 
-## Features
+A one-click **sample invoice** (US *and* European formatting) lets you demo the
+whole flow without hunting for a PDF.
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## How it works
 
-## Demo
+```
+upload PDF → document row (pending)
+    └─→ extraction pipeline (processing)
+            ├─ validate file is a PDF
+            ├─ Gemini reads the file → raw fields (verbatim text)
+            ├─ deterministic normalizer: amounts, dates, currency, line items
+            ├─ reconciler: subtotal + tax + shipping − discount == total?
+            │   (missing totals are derived + flagged, not guessed)
+            └─ status: ready / needs_review / failed
+    └─→ review UI: correct fields, live re-check of the math, save / reprocess / delete
+    └─→ searchable + filterable (vendor, number, PO, date, currency, status)
+```
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+## Vocabulary
 
-## Deploy to Vercel
+| Term | Meaning |
+|---|---|
+| `documents` | One row per uploaded PDF; tracks the processing lifecycle (`pending → processing → needs_review → ready / failed`) |
+| `invoices` | The extracted, normalized structure (vendor, dates, amounts, flags, per-field confidence) |
+| `invoice_items` | Line items, in order, with qty / unit price / amount |
+| Status | `needs_review` = pipe flagged something or a critical field had low confidence; humans review then hit "Save & mark ready" |
 
-Vercel deployment will guide you through creating a Supabase account and project.
+Review flags: `total_mismatch`, `subtotal_mismatch`, `line_item_mismatch`,
+`tax_mismatch`, `missing_total`, `total_derived`, `subtotal_derived`,
+`ambiguous_date`, `unknown_currency`, `unparseable_amount`,
+`missing_vendor`, `missing_invoice_number`, `edited_by_user`.
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+## Tech
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+- Next.js 16 (App Router), React 19, TypeScript (strict)
+- Supabase (Auth via `@supabase/ssr`, Postgres, Storage, RLS)
+- Google Gemini for document understanding (structured output + inline PDF)
+- Tailwind CSS + shadcn/ui
+- `pdf-lib` for generating the demo sample invoices
+- Vitest for the extraction pipeline unit tests (51 tests)
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+## One-time setup
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+### 1. Supabase
 
-## Clone and run locally
+Create a project, then run the migrations:
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+```bash
+supabase link --project-ref <your-project-ref>
+supabase db push
+```
 
-2. Create a Next.js app using the Supabase Starter template npx command
+Migrations (in `supabase/migrations/`):
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+| File | Creates |
+|---|---|
+| `..._create_invoices_storage_bucket.sql` | Private `invoices` storage bucket + per-user policies |
+| `..._create_invoices_schema.sql` | `documents`, `invoices`, `invoice_items` tables, `pg_trgm` search indexes, per-user RLS, `updated_at` triggers |
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+### 2. Environment variables
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+Copy `.env.example` to `.env.local` and fill in:
 
-3. Use `cd` to change into the app's directory
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+GEMINI_API_KEY=...            # https://aistudio.google.com/apikey
+GEMINI_MODEL=gemini-3.5-flash # optional override
+# GEMINI_FALLBACK_MODELS=gemini-3.5-flash-lite # optional cheaper retry models
+```
 
-   ```bash
-   cd with-supabase-app
-   ```
+The Gemini key stays server-side. Without it, uploads are stored but
+extraction fails with a clear "not configured" message.
 
-4. Rename `.env.example` to `.env.local` and update the following:
+### 3. Run
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+```bash
+pnpm install
+pnpm dev
+```
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+Open http://localhost:3000, sign up, and hit **"Try a sample invoice"** on the
+dashboard — it generates a realistic PDF and runs it through the full pipeline.
 
-5. You can now run the Next.js local development server:
+## Quality gates
 
-   ```bash
-   npm run dev
-   ```
+```bash
+pnpm lint      # ESLint
+pnpm build     # Next.js production build + type check
+pnpm vitest run  # extraction pipeline tests
+```
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+## Project layout
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+```
+app/dashboard/actions/   server actions: upload, extract, invoices (review), samples
+app/dashboard/invoices/  list (searchable) + detail (review/edit/approve)
+lib/extraction/          pipeline: gemini provider, schema, normalize, reconcile, pipeline
+lib/data.ts              server-side queries (search, stats, currencies)
+lib/db.ts                row types shared with the UI
+lib/samples.ts           pdf-lib sample-invoice generator
+tests/                   vitest suites for the pipeline
+supabase/migrations/     schema + storage
+```
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
-
-## Feedback and issues
-
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
-
-## More Supabase examples
-
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+See `decisions.md` for the reasoning behind the notable choices.

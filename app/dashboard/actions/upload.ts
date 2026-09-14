@@ -1,12 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export type UploadResult = {
   success: boolean;
   error?: string;
-  path?: string;
+  documentId?: string;
 };
 
 export async function uploadInvoice(
@@ -48,10 +49,34 @@ export async function uploadInvoice(
     });
 
   if (uploadError) {
+    logger.warn("storage.upload", "Failed to upload invoice to storage", {
+      error: uploadError.message,
+    });
     return { success: false, error: uploadError.message };
   }
 
-  revalidatePath("/protected");
+  // Record the document so the extraction lifecycle has a row to track.
+  const { data: doc, error: insertError } = await supabase
+    .from("documents")
+    .insert({
+      user_id: user.id,
+      storage_path: filePath,
+      filename: file.name,
+      size_bytes: file.size,
+      status: "pending",
+    })
+    .select("id")
+    .single();
 
-  return { success: true, path: filePath };
+  if (insertError) {
+    logger.error("documents.insert", "Failed to record uploaded document", {
+      error: insertError.message,
+    });
+    // Clean up the orphaned storage object so we don't leak files.
+    await supabase.storage.from("invoices").remove([filePath]);
+    return { success: false, error: "Could not record the upload. Please retry." };
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true, documentId: doc.id };
 }

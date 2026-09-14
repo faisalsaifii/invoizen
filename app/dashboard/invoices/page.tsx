@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchInvoices, listCurrencies, type InvoicesFilters } from "@/lib/data";
 import { InvoicesFilter } from "./invoices-filter";
 import { InvoiceStatusBadge } from "@/components/invoice/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate } from "@/lib/format";
 import { SearchX, AlertTriangle } from "lucide-react";
 import {
@@ -18,36 +19,62 @@ import type { InvoiceWithDocument } from "@/lib/db";
 
 export const instant = false;
 
-export default async function InvoicesPage({
+function InvoicesContentSkeleton() {
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-28 ml-auto" />
+      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3.5 w-64" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3 py-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between gap-4 border-b py-2 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1 flex flex-col gap-1">
+                  <Skeleton className="h-3.5 w-36" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+                <Skeleton className="h-3.5 w-16" />
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+async function InvoicesContent({
+  userId,
+  filters,
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; currency?: string }>;
+  userId: string;
+  filters: InvoicesFilters;
+  searchParams: { search?: string; status?: string; currency?: string };
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const params = await searchParams;
-
-  const filters: InvoicesFilters = {};
-  if (params.search && params.search.trim()) filters.search = params.search.trim();
-  if (params.status === "needs_review" || params.status === "ready") {
-    filters.status = params.status;
-  }
-  if (params.currency && params.currency.trim()) filters.currency = params.currency.trim();
-
-  const currencies = await listCurrencies();
-  const { invoices, total } = await searchInvoices(user.id, filters);
+  const [currencies, { invoices, total }] = await Promise.all([
+    listCurrencies(),
+    searchInvoices(userId, filters),
+  ]);
 
   const needsReviewCount = invoices.filter((i) => i.status === "needs_review").length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground">
           {total} {total === 1 ? "result" : "results"}
           {Object.keys(filters).length > 0 && " with active filters"}
           {needsReviewCount > 0
@@ -59,9 +86,9 @@ export default async function InvoicesPage({
       <Suspense fallback={null}>
         <InvoicesFilter
           currencies={currencies}
-          initialSearch={params.search ?? ""}
-          initialStatus={params.status ?? ""}
-          initialCurrency={params.currency ?? ""}
+          initialSearch={searchParams.search ?? ""}
+          initialStatus={searchParams.status ?? ""}
+          initialCurrency={searchParams.currency ?? ""}
         />
       </Suspense>
 
@@ -147,6 +174,37 @@ export default async function InvoicesPage({
           </CardContent>
         </Card>
       )}
+    </>
+  );
+}
+
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; status?: string; currency?: string }>;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+
+  const params = await searchParams;
+
+  const filters: InvoicesFilters = {};
+  if (params.search && params.search.trim()) filters.search = params.search.trim();
+  if (params.status === "needs_review" || params.status === "ready") {
+    filters.status = params.status;
+  }
+  if (params.currency && params.currency.trim()) filters.currency = params.currency.trim();
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+
+      <Suspense fallback={<InvoicesContentSkeleton />}>
+        <InvoicesContent userId={user.id} filters={filters} searchParams={params} />
+      </Suspense>
     </div>
   );
 }

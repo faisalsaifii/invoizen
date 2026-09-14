@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { reviewInvoice, deleteInvoice, reprocessInvoice } from "../../actions/invoices";
 import { FlagRow } from "@/components/invoice/flag-row";
 import { ConfidenceDot } from "@/components/invoice/confidence-dot";
@@ -20,7 +19,6 @@ import {
 import type { InvoiceRow, InvoiceItemRow } from "@/lib/db";
 import type { ModelConfidence } from "@/lib/extraction/types";
 import {
-  ArrowLeft,
   ExternalLink,
   RefreshCw,
   Save,
@@ -314,13 +312,6 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/invoices"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={15} />
-            Invoices
-          </Link>
           <InvoiceStatusBadge status={invoice.status} />
         </div>
         <div className="flex items-center gap-2">

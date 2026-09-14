@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { uploadInvoice } from "./actions/upload";
 import { processDocument } from "./actions/extract";
@@ -33,6 +33,13 @@ export function InvoiceUploader() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname === "/dashboard") {
+      setPhase("idle");
+      setError(null);
+    }
+  }, [pathname]);
 
   function startProgress() {
     setPhase("processing");

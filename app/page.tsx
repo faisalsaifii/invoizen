@@ -1,4 +1,5 @@
 import { AuthButton } from "@/components/auth-button";
+import { DashboardNav } from "@/components/dashboard-nav";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
@@ -85,10 +86,11 @@ export default async function Home() {
       <div className="flex-1 w-full flex flex-col items-center">
         <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
           <div className="w-full max-w-6xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
+            <div className="flex gap-6 items-center">
               <Link href={"/"}>
-                <span className="text-base">Invoizen</span>
+                <span className="text-base font-semibold">Invoizen</span>
               </Link>
+              {loggedIn ? <DashboardNav /> : null}
             </div>
             {!hasEnvVars ? null : (
               <Suspense>

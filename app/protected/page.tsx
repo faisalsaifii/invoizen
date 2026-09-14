@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { InfoIcon } from "lucide-react";
 import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { Suspense } from "react";
+import { InvoiceUploader } from "./invoice-uploader";
 
 async function UserDetails() {
   const supabase = await createClient();
@@ -33,6 +34,14 @@ export default function ProtectedPage() {
             <UserDetails />
           </Suspense>
         </pre>
+      </div>
+      <div className="flex flex-col gap-4 items-start">
+        <h2 className="font-bold text-2xl">Upload Invoice</h2>
+        <p className="text-sm text-muted-foreground">
+          Upload your invoice PDFs. Files are stored securely in Supabase
+          Storage and are only accessible by you.
+        </p>
+        <InvoiceUploader />
       </div>
       <div>
         <h2 className="font-bold text-2xl mb-4">Next steps</h2>

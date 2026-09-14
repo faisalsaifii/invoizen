@@ -1,10 +1,8 @@
-import { AuthButton } from "@/components/auth-button";
-import { DashboardNav } from "@/components/dashboard-nav";
 import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
-import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -84,21 +82,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center">
       <div className="flex-1 w-full flex flex-col items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-6xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-6 items-center">
-              <Link href={"/"}>
-                <span className="text-base font-semibold">Invoizen</span>
-              </Link>
-              {loggedIn ? <DashboardNav /> : null}
-            </div>
-            {!hasEnvVars ? null : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
-          </div>
-        </nav>
+        <SiteHeader showNav={loggedIn} />
 
         <div className="flex-1 flex flex-col items-center gap-20 max-w-6xl w-full px-5 py-20">
           <section className="flex flex-col items-center gap-6 text-center">

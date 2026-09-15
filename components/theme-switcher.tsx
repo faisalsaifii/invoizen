@@ -32,7 +32,7 @@ const ThemeSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size={"sm"} className="gap-1.5">
+        <Button variant="ghost" size={"sm"} className="gap-1.5 px-2">
           {theme === "light" ? (
             <Sun
               key="light"

@@ -30,7 +30,7 @@ export function DashboardNav() {
             }
           >
             <tab.icon size={15} fill={active ? "currentColor" : "none"} />
-            {tab.label}
+            <span className="hidden xs:inline">{tab.label}</span>
           </Link>
         );
       })}

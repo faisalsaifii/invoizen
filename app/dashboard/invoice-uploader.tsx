@@ -133,11 +133,12 @@ export function InvoiceUploader() {
         onChange={handleFile}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <Button
           variant="default"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
+          className="w-full sm:w-auto"
         >
           {busy && phase === "uploading" ? (
             <Loader2 size={16} className="animate-spin" />
@@ -154,6 +155,7 @@ export function InvoiceUploader() {
           variant="outline"
           disabled={busy || pathname !== "/dashboard"}
           onClick={handleSample}
+          className="w-full sm:w-auto"
         >
           <Wand2 size={16} />
           Try a sample invoice

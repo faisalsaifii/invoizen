@@ -15,10 +15,10 @@ export async function AuthButton() {
     <LogoutButton />
   ) : (
     <div className="flex gap-2">
-      <Button asChild size="sm" variant={"outline"}>
+      <Button asChild size="sm" variant={"outline"} className="h-auto px-2 py-1">
         <Link href="/auth/login">Sign in</Link>
       </Button>
-      <Button asChild size="sm" variant={"default"}>
+      <Button asChild size="sm" variant={"default"} className="h-auto px-2 py-1">
         <Link href="/auth/sign-up">Sign up</Link>
       </Button>
     </div>

@@ -17,7 +17,6 @@ import {
   FileText,
   AlertTriangle,
   FileWarning,
-  ArrowRight,
   Inbox,
 } from "lucide-react";
 import {
@@ -52,7 +51,7 @@ function StatCard({
         {icon}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xl sm:text-2xl font-bold">{value}</div>
         {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
       </CardContent>
     </Card>
@@ -91,7 +90,7 @@ function RecentDocsSkeleton() {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="flex items-center justify-between gap-4 px-4 py-3"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Skeleton className="h-5 w-20 shrink-0" />
@@ -100,7 +99,7 @@ function RecentDocsSkeleton() {
                   <Skeleton className="h-3 w-52" />
                 </div>
               </div>
-              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16 sm:ml-auto" />
             </div>
           ))}
         </CardContent>
@@ -183,8 +182,8 @@ async function RecentDocuments({ userId }: { userId: string }) {
   const recent = await getRecentDocuments(userId, 8);
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-3">
+    <section className="w-full min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h2 className="text-lg font-semibold">Recent documents</h2>
         <InvoicesLink />
       </div>
@@ -203,49 +202,47 @@ async function RecentDocuments({ userId }: { userId: string }) {
         </Card>
       ) : (
         <div className="border rounded-lg divide-y overflow-hidden bg-card">
-          {recent.map((doc) => (
-            <div
-              key={doc.id}
-              className="flex items-center justify-between gap-4 px-4 py-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <DocumentStatusBadge status={doc.status} />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {doc.invoice_id && doc.vendor_name
-                      ? doc.vendor_name
-                      : doc.filename}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {doc.filename} · {formatDateTime(doc.created_at)}
-                  </p>
+          {recent.map((doc) => {
+            const rowContent = (
+              <>
+                <div className="flex items-center gap-3 min-w-0">
+                  <DocumentStatusBadge status={doc.status} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {doc.invoice_id && doc.vendor_name
+                        ? doc.vendor_name
+                        : doc.filename}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {doc.filename} · {formatDateTime(doc.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              {doc.status === "failed" && doc.status_message && (
-                <span className="text-xs text-muted-foreground hidden md:block max-w-64 truncate">
-                  {doc.status_message}
-                </span>
-              )}
-              <div className="flex items-center gap-2 shrink-0">
-                {doc.invoice_id ? (
-                  <Link
-                    href={`/dashboard/invoices/${doc.invoice_id}`}
-                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                  >
-                    Open <ArrowRight size={14} />
-                  </Link>
-                ) : doc.status === "pending" ? (
-                  <span className="text-xs text-muted-foreground">
-                    Waiting to be processed
+                {doc.status === "failed" && doc.status_message && (
+                  <span className="text-xs text-muted-foreground hidden md:block max-w-64 truncate">
+                    {doc.status_message}
                   </span>
-                ) : doc.status === "failed" ? (
-                  <span className="text-xs text-muted-foreground">
-                    Upload it again
-                  </span>
-                ) : null}
+                )}
+              </>
+            );
+
+            const rowClass =
+              "flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 transition-colors";
+
+            return doc.invoice_id ? (
+              <Link
+                key={doc.id}
+                href={`/dashboard/invoices/${doc.invoice_id}`}
+                className={`${rowClass} hover:bg-accent/50`}
+              >
+                {rowContent}
+              </Link>
+            ) : (
+              <div key={doc.id} className={rowClass}>
+                {rowContent}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

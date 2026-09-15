@@ -4,12 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { SpotlightCard } from "@/components/spotlight-card";
 import {
   ArrowRight,
   FileCheck2,
@@ -48,19 +44,23 @@ const features = [
 const steps = [
   {
     title: "Upload a PDF",
-    description: "Any invoice — US or European formatting, multiple line items, tax included.",
+    description:
+      "Any invoice — US or European formatting, multiple line items, tax included.",
   },
   {
     title: "Invoizen extracts",
-    description: "An LLM reads the file; a deterministic normalizer parses amounts and dates.",
+    description:
+      "An LLM reads the file; a deterministic normalizer parses amounts and dates.",
   },
   {
     title: "Math is verified",
-    description: "Subtotal + tax + shipping − discount is reconciled against the total, deterministically.",
+    description:
+      "Subtotal + tax + shipping − discount is reconciled against the total, deterministically.",
   },
   {
     title: "Review, save, search",
-    description: "Flagged invoices land in a review queue. Approve and they're in your queryable ledger.",
+    description:
+      "Flagged invoices land in a review queue. Approve and they're in your queryable ledger.",
   },
 ];
 
@@ -80,14 +80,24 @@ async function isLoggedIn() {
 export default async function Home() {
   const loggedIn = await isLoggedIn();
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col items-center">
+    <main className="relative min-h-screen flex flex-col items-center">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div
+          className="absolute inset-0 [background-image:radial-gradient(hsl(var(--foreground)/0.1)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_90%_70%_at_50%_0%,black,transparent_75%)]"
+        />
+        <div className="absolute inset-x-0 top-0 h-[42rem] bg-[radial-gradient(ellipse_at_top,hsl(var(--foreground)/0.05),transparent_65%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-96 bg-[radial-gradient(ellipse_at_bottom,hsl(var(--foreground)/0.04),transparent_70%)]" />
+      </div>
+      <div className="relative z-10 flex-1 w-full flex flex-col items-center">
         <SiteHeader showNav={loggedIn} />
 
         <div className="flex-1 flex flex-col items-center gap-20 max-w-6xl w-full px-5 py-20">
           <section className="flex flex-col items-center gap-6 text-center">
             <h1 className="text-4xl lg:text-6xl !leading-tight font-bold tracking-tight max-w-3xl">
-              Turn messy invoice PDFs into structured, queryable data.
+              Turn messy invoices into structured, queryable data.
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl">
               Upload any invoice PDF. Invoizen extracts the vendor, dates, line
@@ -127,18 +137,18 @@ export default async function Home() {
             <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent mb-10" />
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {features.map((feature) => (
-                <Card key={feature.title}>
+                <SpotlightCard key={feature.title}>
                   <CardHeader>
                     <feature.icon
                       size={20}
-                      className="text-primary mb-2"
+                      className="text-primary mb-2 transition-transform duration-300 group-hover:scale-110"
                     />
                     <CardTitle className="text-base">{feature.title}</CardTitle>
                     <CardDescription className="text-sm">
                       {feature.description}
                     </CardDescription>
                   </CardHeader>
-                </Card>
+                </SpotlightCard>
               ))}
             </div>
           </section>
@@ -150,7 +160,7 @@ export default async function Home() {
             <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {steps.map((step, i) => (
                 <li key={step.title}>
-                  <Card className="h-full">
+                  <SpotlightCard className="h-full">
                     <CardHeader>
                       <span className="text-3xl font-bold text-primary/40">
                         {String(i + 1).padStart(2, "0")}
@@ -162,14 +172,14 @@ export default async function Home() {
                         {step.description}
                       </CardDescription>
                     </CardHeader>
-                  </Card>
+                  </SpotlightCard>
                 </li>
               ))}
             </ol>
           </section>
 
           <section className="w-full">
-            <Card className="flex flex-col lg:flex-row items-center justify-between gap-6 p-8">
+            <SpotlightCard className="flex flex-col lg:flex-row items-center justify-between gap-6 p-8">
               <div className="flex flex-col gap-2 text-center lg:text-left">
                 <h2 className="text-2xl font-bold tracking-tight">
                   Your invoices, accurately extracted — and verified.
@@ -185,7 +195,7 @@ export default async function Home() {
                   <ArrowRight />
                 </Link>
               </Button>
-            </Card>
+            </SpotlightCard>
           </section>
         </div>
 

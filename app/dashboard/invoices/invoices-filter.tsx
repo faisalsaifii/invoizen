@@ -137,8 +137,8 @@ export function InvoicesFilter({
               className={cn(
                 "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
                 currentStatus === opt.value
-                  ? "bg-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-primary",
               )}
             >
               {opt.label}
@@ -165,7 +165,7 @@ export function InvoicesFilter({
       {active && (
         <button
           type="button"
-          className="text-xs text-muted-foreground underline underline-offset-2 self-start hover:text-foreground"
+          className="text-xs text-primary/80 underline underline-offset-2 self-start hover:text-primary"
           onClick={() => {
             setSearch("");
             router.push("/dashboard/invoices");

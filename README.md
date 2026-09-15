@@ -1,6 +1,6 @@
 # Invoizen
 
-**Turn messy invoice PDFs into structured, queryable data.**
+**Turn messy invoices into structured, queryable data.**
 
 Upload any invoice PDF. Invoizen extracts the vendor, dates, line items and
 amounts with an LLM, then **verifies the math** — totals are cross-checked

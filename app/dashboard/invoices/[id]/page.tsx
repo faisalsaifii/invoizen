@@ -1,7 +1,5 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getInvoiceDetail } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +18,7 @@ function InvoiceReviewSkeleton() {
       <div className="flex justify-end">
         <Skeleton className="h-8 w-36" />
       </div>
-      <Card className="border-amber-300">
+      <Card>
         <CardContent className="pt-6">
           <Skeleton className="h-4 w-56" />
           <Skeleton className="h-3 w-80 mt-2" />
@@ -106,16 +104,6 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="flex flex-col gap-4 pb-10">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/invoices"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Invoices
-        </Link>
-      </div>
-
       <Suspense fallback={<InvoiceReviewSkeleton />}>
         <InvoiceReview userId={user.id} invoiceId={id} supabase={supabase} />
       </Suspense>

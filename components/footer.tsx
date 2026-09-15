@@ -14,7 +14,7 @@ export function Footer() {
         <Github className="size-3.5" />
         Made by faisalsaifii
       </a>
-      <p>Extract invoice PDFs into structured, queryable data.</p>
+      <p>Extract invoices into structured, queryable data.</p>
       <ThemeSwitcher />
     </footer>
   );

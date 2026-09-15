@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Invoizen",
   description:
-    "Turn messy invoice PDFs into structured, queryable data — extracted with an LLM and verified by deterministic math checks.",
+    "Turn messy invoices into structured, queryable data — extracted with an LLM and verified by deterministic math checks.",
 };
 
 const geistSans = Geist({

@@ -1,7 +1,16 @@
--- Turn messy invoice PDFs into structured, queryable data.
--- Two tables: documents (the uploaded file + processing lifecycle) and
--- invoices (the extracted, normalized, human-verified structure).
+-- =============================================================================
+-- invoizen: canonical database schema
+-- -----------------------------------------------------------------------------
+-- This file is the authoritative reference for the current database schema.
+-- It is idempotent and safe to re-run repeatedly.
+--
+-- When applying a schema change, add a migration under supabase/migrations/
+-- and then update this file to reflect the new state.
+-- =============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Extension
+-- ---------------------------------------------------------------------------
 create extension if not exists pg_trgm;
 
 -- ---------------------------------------------------------------------------
@@ -21,7 +30,8 @@ create table if not exists public.documents (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists documents_user_created_idx on public.documents (user_id, created_at desc);
+create index if not exists documents_user_created_idx
+  on public.documents (user_id, created_at desc);
 
 -- ---------------------------------------------------------------------------
 -- invoices: the extracted structure, one per document
@@ -63,9 +73,12 @@ create table if not exists public.invoices (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists invoices_user_idx on public.invoices (user_id, invoice_date desc nulls last);
-create index if not exists invoices_vendor_trgm_idx on public.invoices using gin (vendor_name gin_trgm_ops);
-create index if not exists invoices_number_trgm_idx on public.invoices using gin (invoice_number gin_trgm_ops);
+create index if not exists invoices_user_idx
+  on public.invoices (user_id, invoice_date desc nulls last);
+create index if not exists invoices_vendor_trgm_idx
+  on public.invoices using gin (vendor_name gin_trgm_ops);
+create index if not exists invoices_number_trgm_idx
+  on public.invoices using gin (invoice_number gin_trgm_ops);
 
 -- ---------------------------------------------------------------------------
 -- invoice_items: line items, ordered
@@ -144,4 +157,50 @@ with check (
     select 1 from public.invoices i
     where i.id = invoice_id and i.user_id = auth.uid()
   )
+);
+
+-- ---------------------------------------------------------------------------
+-- Storage: bucket for invoice PDFs
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'invoices',
+  'invoices',
+  false,
+  10485760, -- 10MB limit
+  array['application/pdf']::text[]
+)
+on conflict (id) do nothing;
+
+-- Allow authenticated users to upload files to their own folder
+drop policy if exists "Users can upload invoice PDFs" on storage.objects;
+create policy "Users can upload invoice PDFs"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'invoices'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow authenticated users to view their own files
+drop policy if exists "Users can view their own invoices" on storage.objects;
+create policy "Users can view their own invoices"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'invoices'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow authenticated users to delete their own files
+drop policy if exists "Users can delete their own invoices" on storage.objects;
+create policy "Users can delete their own invoices"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'invoices'
+  and (storage.foldername(name))[1] = auth.uid()::text
 );

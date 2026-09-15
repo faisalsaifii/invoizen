@@ -1,124 +1,94 @@
-# Decisions Log
+# Decisions
 
-## Project Setup
+A short note on some of the decisions I made while building Invoizen and why.
 
-- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript (strict)
-- **Styling**: Tailwind CSS + shadcn/ui (new-york style)
-- **Auth**: Supabase Auth with `@supabase/ssr` cookie-based sessions (email/password only)
-- **Package manager**: pnpm
-- **Route protection**: `proxy.ts` at repo root (replaces `middleware.ts` for Next 16)
-- **Component caching**: `cacheComponents` enabled; dynamic pages use `export const instant = false`
+## Let Gemini read, but don't let it do the math
 
----
+Gemini returns amounts and dates exactly as they appear in the invoice. A separate TypeScript layer handles parsing and normalization.
 
-## Invoice PDF Upload Feature
+I did this because formats like `1.234,56` can mean different things depending on the locale. Keeping this logic outside the model makes it easier to test and avoids silently getting a wrong number.
 
-### Architecture
+Ambiguous values are flagged for review instead of being guessed. I also left currency conversion out for now.
 
-1. **Storage bucket**: Private `invoices` bucket. Files stored at `{user_id}/{timestamp}_{sanitized_filename}` to prevent collisions and enforce user isolation via RLS.
+## Repair when possible
 
-2. **File constraints**: PDF-only, 10 MB max, enforced at the server action level *and* in the bucket's `allowed_mime_types`.
+If an invoice doesn't have a total but has enough information to calculate it, I derive the total and mark it as derived with lower confidence.
 
-3. **RLS over server enforcement**: Storage access governed by three RLS policies (INSERT, SELECT, DELETE) scoped to `auth.uid()::text`. Even if the action is bypassed, Supabase enforces per-user isolation.
+This seemed better than failing the entire invoice just because one field was missing.
 
-4. **Server actions over API routes**: `app/dashboard/actions/upload.ts` uses `"use server"` — avoids manual request/response handling and integrates with Next.js revalidation.
+## Documents and invoices are separate
 
-5. **Migration is idempotent**: `ON CONFLICT DO NOTHING` for the bucket insert; `DROP POLICY IF EXISTS` before each policy creation so the migration re-runs safely.
+The uploaded file is stored as a document first. The invoice record is created after extraction succeeds.
 
----
+This keeps upload and extraction independent. If Gemini fails or times out, the original file is still there and can be processed again.
 
-## Extraction Pipeline (LLM → Structured Data)
+## Extraction is synchronous
 
-### Provider & Model
+Upload and extraction happen as two separate server actions. Extraction runs in the same request with retries and a 50-second timeout.
 
-- **Gemini** was chosen because: (a) free-tier is sufficient for the assignment, (b) structured output via `responseMimeType` + `responseSchema`, (c) native inline PDF reading via `inline_data`, (d) the API is stable and the SDK is unnecessary (`fetch` suffices).
-- Default model: **`gemini-3.5-flash`** — fast, cheap, handles invoice PDFs well. Override via `GEMINI_MODEL` env var.
-- Config: no SDK dependency; raw `fetch` to `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` with API key via `x-goog-api-key` header.
-- **Not OpenAI, Anthropic, or Ollama** — rejected for this project due to: OpenAI lacks native PDF handling (would need a separate text-extraction layer), Anthropic has no structured-output contract, Ollama requires a local model running and cannot read PDFs directly.
+I considered using a queue or background worker, but for a five-day project it felt like unnecessary infrastructure. The extraction usually finishes within the serverless function timeout anyway.
 
-### Schema Design
+## PostgreSQL search instead of a vector DB
 
-- **Model returns amounts as verbatim text strings** ("$1,234.56", "1.234,56 €"), not numbers. This is the whole point of the pipeline: the model copies the text faithfully; a deterministic parser normalizes it. This makes the extraction auditable — the reviewer sees the raw value next to the parsed number.
-- Empty string `""` convention for absent fields. The Zod schema defaults missing keys to `null` via `.default(null).transform(...)`. Using `.optional()` alone left `undefined` which leaked into Supabase inserts; `null` is the SQL semantic for missing.
+Invoice search uses `pg_trgm` and `ILIKE`.
 
-### Number Normalization (`lib/extraction/normalize.ts`)
+Most searches are things like invoice numbers, PO numbers, and vendor names. I didn't see much value in adding embeddings or a separate search service for this.
 
-Deterministic, no-network, no-model. Handles:
+## RLS + application-level checks
 
-- **US format**: `1,234.56` → 1234.56
-- **EU format**: `1.234,56` → 1234.56
-- **Mixed separators**: the last separator is treated as the decimal one; everything else is grouping.
-- **Single separator**: 1–2 trailing digits → decimal; 0 trailing → punctuation; 3 trailing → grouping (except `0,123` → 0.123).
-- **Currency symbols stripped** before parsing; ISO codes handled by a separate `mapCurrency` function.
-- **`¥` deliberately NOT auto-resolved** to JPY or CNY — ambiguous in isolation, so it raises `unknown_currency`.
-- **`₿` returns `unknown: true`** → `unknown_currency` flag.
+Supabase RLS restricts rows to the authenticated user. I also filter by `user_id` in the application queries.
 
-### Date Normalization
+The extra checks aren't strictly necessary with RLS, but they make ownership explicit in the code and give me another layer of protection.
 
-- ISO `YYYY-MM-DD` validated directly.
-- Numeric formats separated by `/`, `.`, or `-` parsed with locale heuristics: `MM/DD/YYYY` vs `DD/MM/YYYY` determined by which day/month makes sense (e.g., month ≤ 12 and day ≤ 31). When ambiguous (both ≤ 12), `ambiguous_date` flag is set with confidence 0.5.
+## Gemini
 
-### Confidence & Review Heuristics
+I put Gemini behind a small `ExtractionProvider` interface even though there's only one provider right now.
 
-- **Per-field confidence**: 0–1 float per critical field (`vendorName`, `invoiceNumber`, `invoiceDate`, `currency`, `total`). Critical fields with confidence < 0.7 → `needs_review`.
-- **Review flags always force review** regardless of confidence: `total_mismatch`, `subtotal_mismatch`, `line_item_mismatch`, `tax_mismatch`, `missing_total`, `ambiguous_date`, `unknown_currency`, `unparseable_amount`, `total_derived`, `subtotal_derived`.
+Gemini was a good fit because it can handle both normal PDFs and scanned invoices without needing a separate OCR pipeline.
 
-### Reconciliation (`lib/extraction/reconcile.ts`)
+I also chose Gemini because its free tier was generous enough for this project.
 
-1. **Line items internally consistent**: quantity × unit price ≈ amount. If amount is missing but both exist, it is derived.
-2. **Sum of items vs subtotal**: if subtotal missing and items filled → derive; if both present and differ → `subtotal_mismatch`.
-3. **Total = subtotal + tax + shipping − discount**: if total missing → derive (`total_derived`); if present and mismatched → `total_mismatch`.
-4. **Tax rate sanity**: if tax, subtotal, and tax rate are all present, `expected_tax = subtotal × taxRate / 100`. Mismatch → `tax_mismatch`.
-5. **Derived values capped at 0.7 confidence** so they still surface for human review.
+## Retries
 
-### Document Lifecycle & Status
+Transient Gemini failures are retried up to three times. Retries can fall back to a cheaper Flash-Lite model.
 
-| Document status | Meaning |
-|---|---|
-| `pending` | Uploaded, not yet queued for extraction |
-| `processing` | Extraction in progress |
-| `ready` | Invoice extracted and human-reviewed |
-| `needs_review` | Extraction completed but flagged |
-| `failed` | Not an invoice, bad PDF, or extraction error |
+The idea is to avoid paying for a more expensive model when the failure was probably just a timeout, rate limit, or temporary API issue.
 
-| Invoice status | Meaning |
-|---|---|
-| `needs_review` | Default after extraction |
-| `ready` | Human saved changes or confirmed |
+## Keep raw model output small
 
-Non-invoices (`isInvoice: false` in model output) → document `failed` with message "This document is not an invoice" — no invoice row created.
+I don't store the complete Gemini response. `raw_data` only contains a small summary.
 
-### Search
+The normalized invoice already has the information I need, and storing the entire model response would mostly duplicate data.
 
-PostgreSQL `pg_trgm` trigram indexes on `vendor_name` and `invoice_number`. Search uses `ILIKE` which benefits from the GIN trigram index. Chose this over full-text search because invoice numbers and vendor names are codes/proper nouns, not natural language — trigram matching is more predictable and doesn't require a dictionary.
+## Don't guess ambiguous values
 
-### DB Schema Notes
+For example, `¥` could mean JPY or CNY, so I flag it instead of guessing.
 
-- `numeric(14,2)` for amounts, `numeric(5,2)` for tax rate, `char(3)` for currency. Dates stored as Postgres `date` (timezone-free, no time component).
-- `confidence jsonb` — allows per-field weights without adding a table. Indexed with the row, accessible from the UI without a second query.
-- `flags text[]` — human-readable label array (not bitflags) so the UI can render descriptive text directly.
-- `raw_data jsonb` — model-level metadata (document type, original currency text) that might be useful later but doesn't affect the extraction schema.
+The same applies to dates like `03/05/2026`. I'd rather ask for a review than silently store the wrong date or currency.
 
----
+## Testing
 
-## UI Decisions
+There are 51 Vitest tests covering the extraction pipeline, normalization, reconciliation, and Gemini retry handling.
 
-- **Upload flow**: Client `InvoiceUploader` shows phased progress: upload → step-by-step extraction → navigate to detail. Uses `useTransition` to keep the UI responsive during the 10–30s extraction.
-- **Sample invoices**: pdf-lib generates two variants (US clean, EU `1.234,56 €`). The eu variant is a live demo of the locale-aware number parser.
-- **Review form**: All fields editable, live arithmetic summary (total matches? line items sum to subtotal?), confidence dots next to critical fields, flags with human-readable labels, approve / save / reprocess / delete actions.
-- **Filters**: Search with debounced URL-param updates, status toggle, currency dropdown. Back/forward navigation stays in sync with filter state.
-- **No `export const dynamic`**: Conflicts with `cacheComponents`; use `export const instant = false` instead.
+I focused testing on the deterministic parts, especially money and date parsing, since those are the areas where a small bug can produce incorrect results without being obvious.
 
-### File structure
+## Things I didn't build
 
-```
-app/dashboard/actions/     server actions (upload, extract, invoices, samples)
-app/dashboard/             dashboard, layout, uploader
-app/dashboard/invoices/    list page (search + filter), detail/review page
-lib/extraction/            pipeline (types, schema, prompt, gemini, normalize, reconcile, pipeline)
-lib/db.ts                  row types shared with the UI
-lib/data.ts                server-side queries (search, stats, currencies)
-lib/format.ts              client-safe formatting helpers
-components/invoice/        status badges, flag rows, confidence dots
-tests/                     vitest suites for the extraction pipeline
-```
+To keep the scope reasonable, I left out:
+
+* Team/multi-tenant support
+* Accounting integrations
+* Exporting to CSV/QuickBooks/Xero
+* Duplicate invoice detection
+* Batch uploads
+* Currency conversion
+* Full UI/E2E testing
+* Advanced malware scanning
+
+## Why these services
+
+**Supabase** — PostgreSQL, auth, storage, and RLS in one place, with a generous free tier.
+
+**Vercel** — Simple deployment and serverless functions, with a free tier that was enough for the project.
+
+**Gemini** — Good PDF/vision support and a generous free tier, which made it a practical choice for this build.

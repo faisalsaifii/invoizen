@@ -10,34 +10,34 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- Allow authenticated users to upload files to their own folder
-DROP POLICY IF EXISTS "Users can upload invoice PDFs" ON storage.objects;
-CREATE POLICY "Users can upload invoice PDFs"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (
+drop policy if exists "Users can upload invoice PDFs" on storage.objects;
+create policy "Users can upload invoice PDFs"
+on storage.objects
+for insert
+to authenticated
+with check (
   bucket_id = 'invoices'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow authenticated users to view their own files
-DROP POLICY IF EXISTS "Users can view their own invoices" ON storage.objects;
-CREATE POLICY "Users can view their own invoices"
-ON storage.objects
-FOR SELECT
-TO authenticated
-USING (
+drop policy if exists "Users can view their own invoices" on storage.objects;
+create policy "Users can view their own invoices"
+on storage.objects
+for select
+to authenticated
+using (
   bucket_id = 'invoices'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Allow authenticated users to delete their own files
-DROP POLICY IF EXISTS "Users can delete their own invoices" ON storage.objects;
-CREATE POLICY "Users can delete their own invoices"
-ON storage.objects
-FOR DELETE
-TO authenticated
-USING (
+drop policy if exists "Users can delete their own invoices" on storage.objects;
+create policy "Users can delete their own invoices"
+on storage.objects
+for delete
+to authenticated
+using (
   bucket_id = 'invoices'
-  AND (storage.foldername(name))[1] = auth.uid()::text
+  and (storage.foldername(name))[1] = auth.uid()::text
 );

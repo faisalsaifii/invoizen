@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { searchInvoices, listCurrencies, type InvoicesFilters } from "@/lib/data";
+import { searchInvoices, listCurrencies, listVendors, type InvoicesFilters } from "@/lib/data";
 import { InvoicesFilter } from "./invoices-filter";
 import { InvoiceStatusBadge } from "@/components/invoice/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,10 +62,16 @@ async function InvoicesContent({
 }: {
   userId: string;
   filters: InvoicesFilters;
-  searchParams: { search?: string; status?: string; currency?: string };
+  searchParams: {
+    search?: string;
+    status?: string;
+    currency?: string;
+    vendor?: string;
+  };
 }) {
-  const [currencies, { invoices, total }] = await Promise.all([
+  const [currencies, vendors, { invoices, total }] = await Promise.all([
     listCurrencies(),
+    listVendors(),
     searchInvoices(userId, filters),
   ]);
 
@@ -86,9 +92,11 @@ async function InvoicesContent({
       <Suspense fallback={null}>
         <InvoicesFilter
           currencies={currencies}
+          vendors={vendors}
           initialSearch={searchParams.search ?? ""}
           initialStatus={searchParams.status ?? ""}
           initialCurrency={searchParams.currency ?? ""}
+          initialVendor={searchParams.vendor ?? ""}
         />
       </Suspense>
 
@@ -181,7 +189,12 @@ async function InvoicesContent({
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; currency?: string }>;
+  searchParams: Promise<{
+    search?: string;
+    status?: string;
+    currency?: string;
+    vendor?: string;
+  }>;
 }) {
   const supabase = await createClient();
   const {
@@ -197,6 +210,7 @@ export default async function InvoicesPage({
     filters.status = params.status;
   }
   if (params.currency && params.currency.trim()) filters.currency = params.currency.trim();
+  if (params.vendor && params.vendor.trim()) filters.vendor = params.vendor.trim();
 
   return (
     <div className="flex flex-col gap-6">

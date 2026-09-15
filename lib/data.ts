@@ -9,8 +9,7 @@ export interface InvoicesFilters {
   search?: string;
   status?: "needs_review" | "ready";
   currency?: string;
-  from?: string;
-  to?: string;
+  vendor?: string;
   limit?: number;
   offset?: number;
 }
@@ -56,11 +55,8 @@ export async function searchInvoices(
   if (filters.currency) {
     query = query.eq("currency", filters.currency.toUpperCase());
   }
-  if (filters.from) {
-    query = query.gte("invoice_date", filters.from);
-  }
-  if (filters.to) {
-    query = query.lte("invoice_date", filters.to);
+  if (filters.vendor) {
+    query = query.eq("vendor_name", filters.vendor);
   }
 
   const limit = filters.limit ?? 50;
@@ -210,4 +206,17 @@ export async function listCurrencies() {
     .select("currency")
     .not("currency", "is", null);
   return [...new Set((data ?? []).map((d) => d.currency))];
+}
+
+export async function listVendors() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("invoices")
+    .select("vendor_name")
+    .not("vendor_name", "is", null)
+    .order("vendor_name", { ascending: true });
+  const vendors = [...new Set((data ?? []).map((d) => d.vendor_name as string).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b),
+  );
+  return vendors;
 }

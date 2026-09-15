@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SpotlightCard } from "@/components/spotlight-card";
@@ -66,6 +67,39 @@ const steps = [
 
 export const instant = false;
 
+export const metadata: Metadata = {
+  title: "Turn messy invoices into structured, queryable data",
+  description:
+    "Upload any invoice PDF. Invoizen extracts vendor, dates, line items and amounts with an LLM, verifies every total with deterministic math checks, and flags anything uncertain for human review.",
+};
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Invoizen",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Upload any invoice PDF. Invoizen extracts vendor, dates, line items and amounts with an LLM, verifies every total with deterministic math checks, and flags anything uncertain for human review.",
+  url: siteUrl,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  author: {
+    "@type": "Organization",
+    name: "Invoizen",
+    url: siteUrl,
+  },
+};
+
 async function isLoggedIn() {
   if (!hasEnvVars) return false;
   try {
@@ -81,6 +115,10 @@ export default async function Home() {
   const loggedIn = await isLoggedIn();
   return (
     <main className="relative min-h-screen flex flex-col items-center">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden"

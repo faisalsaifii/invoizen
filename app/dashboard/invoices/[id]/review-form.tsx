@@ -9,6 +9,7 @@ import { ConfidenceDot } from "@/components/invoice/confidence-dot";
 import { InvoiceStatusBadge } from "@/components/invoice/status-badge";
 import { formatMoney, formatDateTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -443,8 +444,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
               />
             </Field>
             <Field label="Vendor address" hint={confidence.vendorAddress} confidence={confidence}>
-              <textarea
-                className="min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <Textarea
                 value={f.vendorAddress}
                 onChange={(e) => set("vendorAddress", e.target.value)}
               />
@@ -550,8 +550,7 @@ export function ReviewForm({ invoice, items, pdfUrl, pdfName }: ReviewFormProps)
               />
             </Field>
             <Field label="Notes">
-              <textarea
-                className="min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <Textarea
                 value={f.notes}
                 onChange={(e) => set("notes", e.target.value)}
               />

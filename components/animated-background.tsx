@@ -15,7 +15,6 @@ type Palette = {
   rgb: string;
   lineAlpha: number;
   cursorAlpha: number;
-  glowAlpha: number;
 };
 
 function themePalette(theme: string | undefined): Palette {
@@ -24,7 +23,6 @@ function themePalette(theme: string | undefined): Palette {
     rgb: light ? "0,0,0" : "255,255,255",
     lineAlpha: light ? 0.05 : 0.06,
     cursorAlpha: light ? 0.14 : 0.18,
-    glowAlpha: light ? 0.05 : 0.05,
   };
 }
 
@@ -44,14 +42,12 @@ function createParticles(width: number, height: number, count: number) {
 
 export function AnimatedBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
   const cursor = useRef({ x: -9999, y: -9999 });
   const lerpedCursor = useRef({ x: -9999, y: -9999 });
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const glow = glowRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
@@ -89,11 +85,9 @@ export function AnimatedBackground() {
       cursor.current.y = -9999;
       lerpedCursor.current.x = -9999;
       lerpedCursor.current.y = -9999;
-      if (glow) glow.style.opacity = "0";
     };
 
     const onMove = (e: PointerEvent) => {
-      if (glow) glow.style.opacity = "1";
       cursor.current.x = e.clientX;
       cursor.current.y = e.clientY;
     };
@@ -164,23 +158,12 @@ export function AnimatedBackground() {
             c.stroke();
           }
         }
-
-        const g = c.createRadialGradient(cx, cy, 0, cx, cy, 220);
-        g.addColorStop(0, `rgba(${palette.rgb},${palette.glowAlpha})`);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        c.beginPath();
-        c.fillStyle = g;
-        c.fillRect(cx - 220, cy - 220, 440, 440);
       }
 
       c.globalAlpha = 1;
 
       lerpedCursor.current.x += (cursor.current.x - lerpedCursor.current.x) * 0.08;
       lerpedCursor.current.y += (cursor.current.y - lerpedCursor.current.y) * 0.08;
-
-      if (cx > -9900 && cy > -9900 && glow) {
-        glow.style.transform = `translate(${cx}px, ${cy}px)`;
-      }
     }
 
     let loop = () => {};
@@ -227,10 +210,6 @@ export function AnimatedBackground() {
       <div className="absolute top-1/3 right-[4%] h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--foreground)/0.06),transparent_70%)] blur-3xl opacity-60 [animation:blob-float_20s_ease-in-out_infinite_-4s]" />
       <div className="absolute -bottom-24 left-[30%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--foreground)/0.05),transparent_70%)] blur-3xl opacity-60 [animation:blob-float_32s_ease-in-out_infinite_-10s]" />
 
-      <div
-        ref={glowRef}
-        className="absolute left-0 top-0 -ml-64 -mt-64 h-[32rem] w-[32rem] rounded-full bg-[radial-gradient(circle,hsl(var(--foreground)/0.06),transparent_65%)] opacity-0 will-change-transform transition-opacity duration-300"
-      />
       <canvas ref={canvasRef} className="absolute inset-0" />
     </div>
   );

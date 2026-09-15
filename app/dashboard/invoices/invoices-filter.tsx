@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -147,18 +154,19 @@ export function InvoicesFilter({
         </div>
 
         {currencies.length > 1 && (
-          <select
-            value={currentCurrency ?? ""}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="bg-muted rounded-lg px-3 py-2 text-xs font-medium border-0 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">All currencies</option>
-            {currencies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <Select value={currentCurrency ?? ""} onValueChange={(v) => setCurrency(v)}>
+            <SelectTrigger className="w-[150px] bg-muted border-0 text-xs font-medium">
+              <SelectValue placeholder="All currencies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All currencies</SelectItem>
+              {currencies.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
 

@@ -1,4 +1,5 @@
 import { Footer } from "@/components/footer";
+import { AnimatedBackground } from "@/components/animated-background";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
@@ -119,16 +120,7 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 [background-image:radial-gradient(hsl(var(--foreground)/0.1)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_90%_70%_at_50%_0%,black,transparent_75%)]"
-        />
-        <div className="absolute inset-x-0 top-0 h-[42rem] bg-[radial-gradient(ellipse_at_top,hsl(var(--foreground)/0.05),transparent_65%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-96 bg-[radial-gradient(ellipse_at_bottom,hsl(var(--foreground)/0.04),transparent_70%)]" />
-      </div>
+      <AnimatedBackground />
       <div className="relative z-10 flex-1 w-full flex flex-col items-center">
         <SiteHeader showNav={loggedIn} />
 
